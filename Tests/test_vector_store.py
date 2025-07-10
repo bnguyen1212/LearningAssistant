@@ -5,7 +5,7 @@ import os
 parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(parent_dir)
 
-from services import VectorStoreService
+from services.vector_store import VectorStoreService
 from dotenv import load_dotenv
 
 load_dotenv()
