@@ -1,11 +1,14 @@
-# Environment variables
-.env
+# ChromaDB files
+chroma_db/
+*.sqlite
+*.sqlite3
+*.db
 
-# Python
+# Python cache
 __pycache__/
-*.py[cod]
-*$py.class
-*.so
+*.pyc
+*.pyo
+*.pyd
 .Python
 build/
 develop-eggs/
@@ -19,26 +22,20 @@ parts/
 sdist/
 var/
 wheels/
-share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-MANIFEST
 
-# Virtual environments
-venv/
-env/
-ENV/
-env.bak/
-venv.bak/
+# Environment variables
+.env
 
-# IDE
-.vscode/settings.json
+# IDE files
+.vscode/
 .idea/
 *.swp
 *.swo
 
-# OS
+# OS files
 .DS_Store
 Thumbs.db
 
