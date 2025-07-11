@@ -25,39 +25,53 @@ class ObsidianService:
             sanitized = "untitled"
         return sanitized
     
-    def create_session_folder(self, session_name: str = None) -> Path:
+    def create_daily_folder(self) -> Path:
         """
-        Create a session-based folder for organizing notes by learning session
+        Create or get daily folder for organizing notes by date
         """
         # Base folder for all learning sessions
         base_folder = self.vault_path / "Learning_Sessions"
+        base_folder.mkdir(exist_ok=True)
         
-        # Generate session folder name with timestamp
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        # Create daily folder with clean date format: "July 11, 2025"
+        today = datetime.now()
+        daily_folder_name = today.strftime("%B %d, %Y")  # e.g., "July 11, 2025"
+        daily_folder = base_folder / daily_folder_name
+        daily_folder.mkdir(exist_ok=True)
+        
+        return daily_folder
+    
+    def generate_session_filename(self, session_name: str = None) -> str:
+        """
+        Generate a unique filename for a session summary within the daily folder
+        """
+        # Generate timestamp for uniqueness
+        timestamp = datetime.now().strftime("%H%M%S")  # HHMMSS format
         
         if session_name:
-            sanitized_session = self.sanitize_filename(session_name)
-            session_folder_name = f"{timestamp}_{sanitized_session}"
+            # Clean the session name for use as filename
+            clean_name = self.sanitize_filename(session_name)
+            clean_name = clean_name[:30]  # Limit length
+            filename = f"{timestamp}_{clean_name}.md"
         else:
-            session_folder_name = f"{timestamp}_session"
+            filename = f"{timestamp}_Learning_Session.md"
         
-        session_folder = base_folder / session_folder_name
-        
-        # Create the directory structure
-        session_folder.mkdir(parents=True, exist_ok=True)
-        
-        return session_folder
+        return filename
     
     def save_session_notes(self, notes_dict: Dict[str, str], session_name: str = None, topics: List[str] = None) -> List[str]:
         """
-        Save session summary to a single file in session folder with dynamic tags
+        Save session summary directly to daily folder
         """
         if not notes_dict:
             print("❌ No session summary to save")
             return []
         
-        # Create session folder
-        session_folder = self.create_session_folder(session_name)
+        # Create daily folder
+        daily_folder = self.create_daily_folder()
+        
+        # Generate unique filename for this session
+        filename = self.generate_session_filename(session_name)
+        summary_path = daily_folder / filename
         
         # Get session content (should be single entry with key "Learning Session")
         session_content = notes_dict.get("Learning Session", "")
@@ -65,71 +79,87 @@ class ObsidianService:
             # Fallback to first available content
             session_content = list(notes_dict.values())[0] if notes_dict else ""
         
-        # Create single session summary file
-        summary_path = session_folder / "Learning_Session_Summary.md"
-        
         # Format tags for YAML frontmatter
         tags_yaml = "[" + ", ".join(topics) + "]"
         
-        # Add metadata header with dynamic tags
+        # Add metadata header with daily organization info
         note_header = f"""---
 created: {datetime.now().isoformat()}
 type: learning_session_summary
-session: {session_folder.name}
+daily_folder: {daily_folder.name}
 tags: {tags_yaml}
 ---
 
 # Learning Session Summary
 
-**Session:** {session_folder.name}  
 **Date:** {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+**Daily Folder:** {daily_folder.name}
 
 """
-    
+        
         full_content = note_header + session_content
         
         try:
             with open(summary_path, 'w', encoding='utf-8') as f:
                 f.write(full_content)
             
-            print(f"✅ Saved session summary: {summary_path.name}")
-            print(f"📁 Session folder: {session_folder.name}")
+            print(f"✅ Saved session summary: {filename}")
+            print(f"📅 Daily folder: {daily_folder.name}")
             return [str(summary_path)]
             
         except Exception as e:
             print(f"❌ Failed to save session summary: {e}")
             return []
     
+    def get_daily_sessions(self, date: datetime = None) -> List[str]:
+        """
+        Get list of sessions for a specific day
+        """
+        if date is None:
+            date = datetime.now()
+        
+        daily_folder_name = date.strftime("%B %d, %Y")
+        daily_folder = self.vault_path / "Learning_Sessions" / daily_folder_name
+        
+        sessions = []
+        if daily_folder.exists():
+            for file_path in daily_folder.glob("*.md"):
+                if file_path.name != "Daily_Index.md":  # Exclude index if it exists
+                    sessions.append(str(file_path))
+        
+        return sessions
+    
     def get_recent_sessions(self, days: int = 7) -> List[str]:
         """
-        Get list of recent learning sessions
+        Get list of recent learning sessions across multiple days
         """
         recent_sessions = []
-        cutoff_date = datetime.now().timestamp() - (days * 24 * 60 * 60)
         
         learning_sessions = self.vault_path / "Learning_Sessions"
         if learning_sessions.exists():
-            for session_folder in learning_sessions.iterdir():
-                if session_folder.is_dir() and session_folder.stat().st_mtime > cutoff_date:
-                    recent_sessions.append(str(session_folder))
+            for daily_folder in learning_sessions.iterdir():
+                if daily_folder.is_dir():
+                    # Check if folder is within the recent days range
+                    folder_age = datetime.now().timestamp() - daily_folder.stat().st_mtime
+                    if folder_age <= (days * 24 * 60 * 60):
+                        # Add all session files from this daily folder
+                        for session_file in daily_folder.glob("*.md"):
+                            if session_file.name != "Daily_Index.md":
+                                recent_sessions.append(str(session_file))
         
         return recent_sessions
     
-    def get_session_info(self, session_folder_path: str) -> Dict:
+    def get_session_info(self, session_file_path: str) -> Dict:
         """
-        Get information about a specific session
+        Get information about a specific session file
         """
-        session_path = Path(session_folder_path)
+        session_path = Path(session_file_path)
         if not session_path.exists():
             return {}
         
-        # Check if session summary exists
-        summary_file = session_path / "Learning_Session_Summary.md"
-        has_summary = summary_file.exists()
-        
         return {
-            "session_name": session_path.name,
+            "session_name": session_path.stem,  # Filename without extension
+            "daily_folder": session_path.parent.name,
             "created": datetime.fromtimestamp(session_path.stat().st_ctime),
-            "has_summary": has_summary,
-            "summary_path": str(summary_file) if has_summary else None
+            "file_path": str(session_path)
         }
