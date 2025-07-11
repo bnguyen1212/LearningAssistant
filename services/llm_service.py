@@ -8,7 +8,8 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from utils.prompt_templates import (
     CHAT_SYSTEM_PROMPT,
     CONTEXT_MESSAGE_TEMPLATE,
-    SESSION_SUMMARY_PROMPT
+    SESSION_SUMMARY_PROMPT,
+    TOPIC_EXTRACTION_PROMPT
 )
 
 load_dotenv()
@@ -88,3 +89,24 @@ class LLMService:
         from langchain_core.messages import HumanMessage
         response = self.llm.invoke([HumanMessage(content=summary_prompt)])
         return response.content
+    
+    def extract_conversation_topics(self, conversation_messages: List[Dict]) -> List[str]:
+        """
+        Extract main topics/themes from a conversation for tagging
+        """
+        # Combine conversation into context
+        conversation_text = "\n".join([
+            f"{msg['role']}: {msg['content']}" 
+            for msg in conversation_messages[-10:]  # Last 10 messages
+        ])
+        
+        prompt = TOPIC_EXTRACTION_PROMPT.format(conversation_text=conversation_text)
+        
+        try:
+            response = self.llm.invoke([{"role": "user", "content": prompt}])
+            topics = [topic.strip().lower() for topic in response.content.split(',')]
+            # Clean and validate topics
+            return [topic for topic in topics if len(topic) > 2 and ('_' in topic or topic.isalpha())][:5]
+        except Exception as e:
+            print(f"❌ Topic extraction failed: {e}")
+            return []

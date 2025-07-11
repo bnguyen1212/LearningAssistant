@@ -11,44 +11,37 @@ class StorageNodes:
         self.vector_service = vector_service
     
     def save_notes_to_obsidian(self, state: ConversationState) -> ConversationState:
-        """
-        Save session summary to Obsidian vault organized by session
-        """
-        print("💾 Saving session summary to Obsidian vault...")
+        """Save generated notes to Obsidian vault with topic-based tags"""
         
-        notes_dict = state["generated_notes"]
+        notes = state["generated_notes"]
+        topics = state.get("identified_topics", [])  # Get extracted topics
         
-        if not notes_dict:
-            print("❌ No session summary to save")
+        if not notes:
             state["obsidian_save_paths"] = []
             return state
         
         try:
-            # Generate session name from first few words of conversation
-            if state["full_conversation"]:
-                first_user_msg = next((msg.content for msg in state["full_conversation"] if msg.role == "user"), "")
-                # Use first 3 words as session name
-                session_words = first_user_msg.split()[:3]
-                session_name = "_".join(session_words) if session_words else "learning_session"
-            else:
-                session_name = "learning_session"
+            # Extract session name from first user message for folder naming
+            conversation = state["full_conversation"]
+            session_name = None
+            if conversation:
+                first_message = conversation[0].content
+                session_name = first_message[:50]  # First 50 chars as session name
             
-            # Save session summary using the session-based approach
-            saved_paths = self.obsidian_service.save_session_notes(notes_dict, session_name)
+            # Save notes with topics as tags
+            saved_paths = self.obsidian_service.save_session_notes(
+                notes, 
+                session_name,
+                topics=topics  # Pass topics for tagging
+            )
+            
             state["obsidian_save_paths"] = saved_paths
+            return state
             
-            if saved_paths:
-                print(f"\n✅ Successfully saved session summary")
-                for path in saved_paths:
-                    print(f"   📄 {path}")
-            else:
-                print("❌ No files were saved")
-        
         except Exception as e:
-            print(f"❌ Error saving session summary: {e}")
+            print(f"❌ Error saving notes: {e}")
             state["obsidian_save_paths"] = []
-        
-        return state
+            return state
     
     def reindex_knowledge_base(self, state: ConversationState) -> ConversationState:
         """

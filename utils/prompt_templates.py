@@ -39,3 +39,19 @@ Create a well-structured markdown summary that:
 Make it comprehensive but well-organized. This should be a complete learning record of the session.
 
 Session Summary:"""
+
+TOPIC_EXTRACTION_PROMPT = """
+Analyze this conversation and extract 3-5 main topics/themes for tagging purposes.
+
+Requirements:
+- Return topics as lowercase, single words or short phrases
+- Use underscores instead of spaces (e.g., "machine_learning")
+- Focus on the main subjects discussed
+- Avoid generic words like "discussion" or "conversation"
+- Prioritize technical terms, concepts, or specific domains
+
+Conversation:
+{conversation_text}
+
+Return only the topics, separated by commas:
+"""

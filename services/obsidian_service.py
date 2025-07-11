@@ -48,9 +48,9 @@ class ObsidianService:
         
         return session_folder
     
-    def save_session_notes(self, notes_dict: Dict[str, str], session_name: str = None) -> List[str]:
+    def save_session_notes(self, notes_dict: Dict[str, str], session_name: str = None, topics: List[str] = None) -> List[str]:
         """
-        Save session summary to a single file in session folder
+        Save session summary to a single file in session folder with dynamic tags
         """
         if not notes_dict:
             print("❌ No session summary to save")
@@ -68,12 +68,15 @@ class ObsidianService:
         # Create single session summary file
         summary_path = session_folder / "Learning_Session_Summary.md"
         
-        # Add metadata header
+        # Format tags for YAML frontmatter
+        tags_yaml = "[" + ", ".join(topics) + "]"
+        
+        # Add metadata header with dynamic tags
         note_header = f"""---
 created: {datetime.now().isoformat()}
 type: learning_session_summary
 session: {session_folder.name}
-tags: [learning, session, summary]
+tags: {tags_yaml}
 ---
 
 # Learning Session Summary
@@ -82,7 +85,7 @@ tags: [learning, session, summary]
 **Date:** {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 
 """
-        
+    
         full_content = note_header + session_content
         
         try:

@@ -9,41 +9,40 @@ class AnalysisNodes:
         self.llm_service = llm_service
     
     def generate_session_summary(self, state: ConversationState) -> ConversationState:
-        """
-        Generate a single comprehensive session summary from the full conversation
-        """
-        print("📝 Generating session summary...")
+        """Generate comprehensive session summary with topics"""
         
-        # Convert full conversation to format expected by LLM service
-        conversation_dict = []
-        for msg in state["full_conversation"]:
-            conversation_dict.append({
-                "role": msg.role,
-                "content": msg.content
-            })
+        conversation = state["full_conversation"]
         
-        if not conversation_dict:
-            print("⚠️ No conversation to summarize")
+        if not conversation or len(conversation) < 2:
             state["generated_notes"] = {}
+            state["identified_topics"] = []  # Store topics here
             return state
         
         try:
-            # Generate session summary using LLM
-            session_content = self.llm_service.generate_session_summary(conversation_dict)
+            # Convert to format for LLM
+            conversation_messages = [
+                {"role": msg.role, "content": msg.content} 
+                for msg in conversation
+            ]
             
-            if session_content:
-                # Use a single "Learning Session" key for the session summary
-                state["generated_notes"] = {"Learning Session": session_content}
-                print(f"✅ Generated session summary ({len(session_content)} chars)")
-            else:
-                print("❌ Failed to generate session summary")
-                state["generated_notes"] = {}
-                
+            # Extract topics BEFORE generating summary
+            topics = self.llm_service.extract_conversation_topics(conversation_messages)
+            state["identified_topics"] = topics
+            
+            # Generate summary (existing logic)
+            session_summary = self.llm_service.generate_session_summary(conversation_messages)
+            
+            state["generated_notes"] = {
+                "Learning Session": session_summary
+            }
+            
+            return state
+            
         except Exception as e:
             print(f"❌ Error generating session summary: {e}")
             state["generated_notes"] = {}
-        
-        return state
+            state["identified_topics"] = []
+            return state
     
     def validate_generated_content(self, state: ConversationState) -> ConversationState:
         """

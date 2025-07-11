@@ -137,17 +137,18 @@ class VectorStoreService:
         except Exception as e:
             return False
     
-    def search_obsidian(self, query: str, top_k: int = 3) -> List[str]:
-        """Search Obsidian vault using vector similarity"""
+    def search_obsidian(self, query: str, top_k: int = 3, min_similarity: float = 0.7) -> List[str]:
+        """Search Obsidian vault using vector similarity with minimum score threshold"""
         # If no index, try to build it
         if not self.obsidian_index:
             if not self.build_obsidian_index():
                 return []
         
         try:
-            # Use retriever instead of query engine to avoid LLM requirements
+            # Use retriever with similarity cutoff
             retriever = self.obsidian_index.as_retriever(
-                similarity_top_k=top_k
+                similarity_top_k=top_k,
+                similarity_cutoff=min_similarity  # Only return results above this threshold
             )
             
             # Retrieve similar nodes
@@ -164,7 +165,7 @@ class VectorStoreService:
                 results.append(f"From: {filename}\n{content}")
             
             return results
-            
+        
         except Exception as e:
             return []
     
