@@ -39,10 +39,9 @@ class LearningWorkflow:
         # Create the state graph
         graph = StateGraph(ConversationState)
         
-        # Add nodes
+        # Add nodes - UPDATED FOR SESSION-BASED APPROACH
         graph.add_node("chat_with_context", self.chat_nodes.chat_with_context)
-        graph.add_node("analyze_topics", self.analysis_nodes.analyze_conversation_topics)
-        graph.add_node("generate_notes", self.analysis_nodes.generate_notes_for_topics)
+        graph.add_node("generate_summary", self.analysis_nodes.generate_session_summary)  # Changed from analyze_topics
         graph.add_node("validate_content", self.analysis_nodes.validate_generated_content)
         graph.add_node("save_notes", self.storage_nodes.save_notes_to_obsidian)
         graph.add_node("reindex_kb", self.storage_nodes.reindex_knowledge_base)
@@ -55,12 +54,12 @@ class LearningWorkflow:
         # Set entry point
         graph.set_entry_point("chat_with_context")
         
-        # Add conditional edges
+        # Add conditional edges - UPDATED WORKFLOW
         graph.add_conditional_edges(
             "chat_with_context",
             self.chat_nodes.should_generate_notes,
             {
-                "generate_notes": "analyze_topics",
+                "generate_notes": "generate_summary",  # Changed from "analyze_topics"
                 "continue_chat": END
             }
         )
@@ -83,9 +82,8 @@ class LearningWorkflow:
             }
         )
         
-        # Add sequential edges
-        graph.add_edge("analyze_topics", "generate_notes")
-        graph.add_edge("generate_notes", "validate_content")
+        # Add sequential edges - SIMPLIFIED WORKFLOW
+        graph.add_edge("generate_summary", "validate_content")  # Direct from summary to validation
         graph.add_edge("save_notes", "finalize_save")
         graph.add_edge("reindex_kb", "show_summary")
         graph.add_edge("show_summary", "clear_conversation")
@@ -107,7 +105,7 @@ class LearningWorkflow:
             "relevant_context": [],
             "llm_response": "",
             "note_request_detected": False,
-            "identified_topics": [],
+            "identified_topics": [],  # Still in state for compatibility but unused
             "generated_notes": {},
             "obsidian_save_paths": [],
             "reindexing_complete": False

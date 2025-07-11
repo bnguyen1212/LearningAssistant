@@ -76,7 +76,7 @@ def test_vector_store():
             print(f"   Found {len(results)} results:")
             for i, result in enumerate(results, 1):
                 print(f"   \n   Result {i}:")
-                print(f"   {result}")
+                #print(f"   {result}")
         else:
             print("   No results found")
     

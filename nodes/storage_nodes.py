@@ -12,40 +12,52 @@ class StorageNodes:
     
     def save_notes_to_obsidian(self, state: ConversationState) -> ConversationState:
         """
-        Save generated notes to Obsidian vault with LLM-generated organization
+        Save session summary to Obsidian vault organized by session
         """
-        print("💾 Saving notes to Obsidian vault...")
+        print("💾 Saving session summary to Obsidian vault...")
         
         notes_dict = state["generated_notes"]
         
         if not notes_dict:
-            print("❌ No notes to save")
+            print("❌ No session summary to save")
             state["obsidian_save_paths"] = []
             return state
         
         try:
-            # Save all notes using the obsidian service
-            saved_paths = self.obsidian_service.save_multiple_notes(notes_dict)
+            # Generate session name from first few words of conversation
+            if state["full_conversation"]:
+                first_user_msg = next((msg.content for msg in state["full_conversation"] if msg.role == "user"), "")
+                # Use first 3 words as session name
+                session_words = first_user_msg.split()[:3]
+                session_name = "_".join(session_words) if session_words else "learning_session"
+            else:
+                session_name = "learning_session"
+            
+            # Save session summary using the session-based approach
+            saved_paths = self.obsidian_service.save_session_notes(notes_dict, session_name)
             state["obsidian_save_paths"] = saved_paths
             
-            print(f"\n✅ Successfully saved {len(saved_paths)} notes:")
-            for path in saved_paths:
-                print(f"   📄 {path}")
-            
+            if saved_paths:
+                print(f"\n✅ Successfully saved session summary")
+                for path in saved_paths:
+                    print(f"   📄 {path}")
+            else:
+                print("❌ No files were saved")
+        
         except Exception as e:
-            print(f"❌ Error saving notes: {e}")
+            print(f"❌ Error saving session summary: {e}")
             state["obsidian_save_paths"] = []
         
         return state
     
     def reindex_knowledge_base(self, state: ConversationState) -> ConversationState:
         """
-        Re-index the vector store with new notes (non-blocking)
+        Re-index the vector store with new session summary (non-blocking)
         """
         saved_paths = state["obsidian_save_paths"]
         
         if not saved_paths:
-            print("⚠️ No new notes to index")
+            print("⚠️ No new session summary to index")
             state["reindexing_complete"] = True
             return state
         
@@ -54,12 +66,12 @@ class StorageNodes:
         def reindex_async():
             """Run re-indexing in background thread"""
             try:
-                print("   📊 Rebuilding vector index with new notes...")
+                print("   📊 Rebuilding vector index with new session summary...")
                 success = self.vector_service.build_obsidian_index()
                 
                 if success:
                     print("   ✅ Re-indexing completed successfully!")
-                    print("   🔍 New notes are now searchable in future conversations")
+                    print("   🔍 New session summary is now searchable in future conversations")
                 else:
                     print("   ❌ Re-indexing failed")
                     
@@ -78,29 +90,28 @@ class StorageNodes:
     
     def finalize_note_saving(self, state: ConversationState) -> ConversationState:
         """
-        Finalize the note saving process and provide summary
+        Finalize the session summary saving process and provide summary
         """
         saved_paths = state["obsidian_save_paths"]
-        notes_count = len(saved_paths)
         
         print("\n" + "=" * 60)
-        print("📚 NOTE SAVING COMPLETE")
+        print("📚 SESSION SUMMARY SAVING COMPLETE")
         print("=" * 60)
         
-        if notes_count > 0:
-            print(f"✅ Successfully saved {notes_count} learning notes")
-            print(f"📁 Notes organized in your Obsidian vault:")
+        if saved_paths:
+            print(f"✅ Successfully saved learning session summary")
+            print(f"📁 Session summary saved to your Obsidian vault:")
             
             for path in saved_paths:
                 # Extract just the relative path from vault for cleaner display
                 relative_path = path.replace(str(self.obsidian_service.vault_path), "")
                 print(f"   📄 {relative_path}")
             
-            print("\n🔄 Vector index updated - new notes are searchable")
+            print("\n🔄 Vector index updated - session summary is searchable")
             print("💬 Ready for new conversation!")
             
         else:
-            print("❌ No notes were saved")
+            print("❌ No session summary was saved")
         
         print("=" * 60)
         
@@ -108,7 +119,7 @@ class StorageNodes:
     
     def check_save_success(self, state: ConversationState) -> str:
         """
-        Conditional edge: check if notes were saved successfully
+        Conditional edge: check if session summary was saved successfully
         """
         if state["obsidian_save_paths"]:
             return "save_success"
@@ -117,12 +128,12 @@ class StorageNodes:
     
     def handle_save_failure(self, state: ConversationState) -> ConversationState:
         """
-        Handle case where note saving failed
+        Handle case where session summary saving failed
         """
-        print("❌ Failed to save notes to Obsidian vault")
+        print("❌ Failed to save session summary to Obsidian vault")
         print("💬 Your conversation content is preserved, you can try again")
         
-        # Don't clear the generated notes in case user wants to retry
+        # Don't clear the generated summary in case user wants to retry
         # Just reset the save-related flags
         state["obsidian_save_paths"] = []
         state["reindexing_complete"] = False
@@ -133,7 +144,6 @@ class StorageNodes:
         """
         Show a final summary of what was accomplished
         """
-        topics = state["identified_topics"]
         notes = state["generated_notes"]
         saved_paths = state["obsidian_save_paths"]
         
@@ -143,16 +153,14 @@ class StorageNodes:
         
         print(f"\n📊 Session Summary:")
         print(f"   💬 Messages in conversation: {len(state['full_conversation'])}")
-        print(f"   🎯 Topics identified: {len(topics)}")
-        print(f"   📝 Notes generated: {len(notes)}")
+        print(f"   📝 Session summary generated: {'Yes' if notes else 'No'}")
         print(f"   💾 Files saved: {len(saved_paths)}")
         
-        if topics:
-            print(f"\n📋 Topics covered:")
-            for i, topic in enumerate(topics, 1):
-                print(f"   {i}. {topic}")
+        if notes:
+            session_content = list(notes.values())[0]
+            print(f"   📄 Summary length: {len(session_content)} characters")
         
         print(f"\n✨ Your knowledge base has been expanded!")
-        print(f"🔄 New content is now searchable for future learning")
+        print(f"🔄 Session summary is now searchable for future learning")
         
         return state

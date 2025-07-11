@@ -4,14 +4,11 @@ from typing import List, Dict
 from pathlib import Path
 from datetime import datetime
 
-from utils.prompt_templates import CATEGORY_GENERATION_PROMPT
-
 class ObsidianService:
     def __init__(self, vault_path: str, llm_service=None):
         self.vault_path = Path(vault_path)
         if not self.vault_path.exists():
             raise ValueError(f"Obsidian vault path does not exist: {vault_path}")
-        self.llm_service = llm_service
     
     def sanitize_filename(self, filename: str) -> str:
         """
@@ -28,124 +25,108 @@ class ObsidianService:
             sanitized = "untitled"
         return sanitized
     
-    def generate_category_path(self, topic: str) -> str:
+    def create_session_folder(self, session_name: str = None) -> Path:
         """
-        Use LLM to generate appropriate category path for the topic
-        """
-        if not self.llm_service:
-            # Fallback to a simple default if no LLM service
-            return "General"
-        
-        category_prompt = CATEGORY_GENERATION_PROMPT.format(topic=topic)
-
-        try:
-            from langchain_core.messages import HumanMessage
-            response = self.llm_service.llm.invoke([HumanMessage(content=category_prompt)])
-            category_path = response.content.strip().strip('/')
-            
-            # Clean up the response and sanitize
-            category_parts = [self.sanitize_filename(part) for part in category_path.split('/')]
-            return '/'.join(category_parts)
-            
-        except Exception as e:
-            print(f"Warning: Failed to generate category path, using default: {e}")
-            return "General"
-    
-    def create_topic_hierarchy(self, topic: str) -> Path:
-        """
-        Create a topic-based folder hierarchy using LLM-generated categories
+        Create a session-based folder for organizing notes by learning session
         """
         # Base folder for all learning sessions
         base_folder = self.vault_path / "Learning_Sessions"
         
-        # Get LLM-generated category path
-        category_path = self.generate_category_path(topic)
+        # Generate session folder name with timestamp
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         
-        # Create full path
-        full_path = base_folder
-        for part in category_path.split('/'):
-            full_path = full_path / part
+        if session_name:
+            sanitized_session = self.sanitize_filename(session_name)
+            session_folder_name = f"{timestamp}_{sanitized_session}"
+        else:
+            session_folder_name = f"{timestamp}_session"
         
-        # Add topic-specific subfolder
-        topic_folder = full_path / self.sanitize_filename(topic)
+        session_folder = base_folder / session_folder_name
         
         # Create the directory structure
-        topic_folder.mkdir(parents=True, exist_ok=True)
+        session_folder.mkdir(parents=True, exist_ok=True)
         
-        return topic_folder
+        return session_folder
     
-    def generate_note_filename(self, topic: str) -> str:
+    def save_session_notes(self, notes_dict: Dict[str, str], session_name: str = None) -> List[str]:
         """
-        Generate a filename for the note based on topic and timestamp
+        Save session summary to a single file in session folder
         """
-        date_str = datetime.now().strftime("%Y%m%d")
-        sanitized_topic = self.sanitize_filename(topic)
-        return f"{date_str}_{sanitized_topic}.md"
-    
-    def save_note(self, topic: str, content: str) -> str:
-        """
-        Save a note to the appropriate topic hierarchy
+        if not notes_dict:
+            print("❌ No session summary to save")
+            return []
         
-        Returns:
-            str: Full path where the note was saved
-        """
-        # Create topic hierarchy
-        topic_folder = self.create_topic_hierarchy(topic)
+        # Create session folder
+        session_folder = self.create_session_folder(session_name)
         
-        # Generate filename
-        filename = self.generate_note_filename(topic)
-        file_path = topic_folder / filename
+        # Get session content (should be single entry with key "Learning Session")
+        session_content = notes_dict.get("Learning Session", "")
+        if not session_content:
+            # Fallback to first available content
+            session_content = list(notes_dict.values())[0] if notes_dict else ""
         
-        # Add metadata header to the note
+        # Create single session summary file
+        summary_path = session_folder / "Learning_Session_Summary.md"
+        
+        # Add metadata header
         note_header = f"""---
-        created: {datetime.now().isoformat()}
-        topic: {topic}
-        type: learning_session
-        tags: [learning, {self.sanitize_filename(topic).lower()}]
-        ---
+created: {datetime.now().isoformat()}
+type: learning_session_summary
+session: {session_folder.name}
+tags: [learning, session, summary]
+---
 
-        # {topic}
+# Learning Session Summary
 
-        """
+**Session:** {session_folder.name}  
+**Date:** {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+
+"""
         
-        full_content = note_header + content
+        full_content = note_header + session_content
         
-        # Write the file
-        with open(file_path, 'w', encoding='utf-8') as f:
-            f.write(full_content)
-        
-        return str(file_path)
+        try:
+            with open(summary_path, 'w', encoding='utf-8') as f:
+                f.write(full_content)
+            
+            print(f"✅ Saved session summary: {summary_path.name}")
+            print(f"📁 Session folder: {session_folder.name}")
+            return [str(summary_path)]
+            
+        except Exception as e:
+            print(f"❌ Failed to save session summary: {e}")
+            return []
     
-    def save_multiple_notes(self, notes_dict: Dict[str, str]) -> List[str]:
+    def get_recent_sessions(self, days: int = 7) -> List[str]:
         """
-        Save multiple notes from a dictionary of topic -> content
-        
-        Returns:
-            List[str]: List of file paths where notes were saved
+        Get list of recent learning sessions
         """
-        saved_paths = []
-        
-        for topic, content in notes_dict.items():
-            try:
-                path = self.save_note(topic, content)
-                saved_paths.append(path)
-                print(f"✅ Saved note: {topic} -> {path}")
-            except Exception as e:
-                print(f"❌ Failed to save note for {topic}: {e}")
-        
-        return saved_paths
-    
-    def get_recent_notes(self, days: int = 7) -> List[str]:
-        """
-        Get list of recently created notes (for debugging/verification)
-        """
-        recent_notes = []
+        recent_sessions = []
         cutoff_date = datetime.now().timestamp() - (days * 24 * 60 * 60)
         
         learning_sessions = self.vault_path / "Learning_Sessions"
         if learning_sessions.exists():
-            for file_path in learning_sessions.rglob("*.md"):
-                if file_path.stat().st_mtime > cutoff_date:
-                    recent_notes.append(str(file_path))
+            for session_folder in learning_sessions.iterdir():
+                if session_folder.is_dir() and session_folder.stat().st_mtime > cutoff_date:
+                    recent_sessions.append(str(session_folder))
         
-        return recent_notes
+        return recent_sessions
+    
+    def get_session_info(self, session_folder_path: str) -> Dict:
+        """
+        Get information about a specific session
+        """
+        session_path = Path(session_folder_path)
+        if not session_path.exists():
+            return {}
+        
+        # Check if session summary exists
+        summary_file = session_path / "Learning_Session_Summary.md"
+        has_summary = summary_file.exists()
+        
+        return {
+            "session_name": session_path.name,
+            "created": datetime.fromtimestamp(session_path.stat().st_ctime),
+            "has_summary": has_summary,
+            "summary_path": str(summary_file) if has_summary else None
+        }

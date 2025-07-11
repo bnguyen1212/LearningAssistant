@@ -16,7 +16,26 @@ class ChatNodes:
         """
         user_message = state["current_user_message"]
         
-        # Search for relevant context from knowledge base
+        # Check if user requested note generation FIRST
+        note_requested = self.llm_service.detect_note_request(user_message)
+        state["note_request_detected"] = note_requested
+        
+        if note_requested:
+            # Just add the user message to conversation
+            user_msg = Message(
+                role="user",
+                content=user_message,
+                timestamp=datetime.now()
+            )
+            state["full_conversation"].append(user_msg)
+            
+            # Clear these since we're not generating a response
+            state["relevant_context"] = []
+            state["llm_response"] = ""
+            
+            return state
+        
+        # Normal chat flow - search for context and generate response
         print(f"🔍 Searching knowledge base for: '{user_message[:50]}...'")
         relevant_context = self.vector_service.search_obsidian(user_message, top_k=3)
         
@@ -60,13 +79,6 @@ class ChatNodes:
         
         state["relevant_context"] = relevant_context
         state["llm_response"] = llm_response
-        
-        # Check if user requested note generation
-        note_requested = self.llm_service.detect_note_request(user_message)
-        state["note_request_detected"] = note_requested
-        
-        if note_requested:
-            print("📝 Note generation requested!")
         
         return state
     

@@ -8,11 +8,11 @@ class AnalysisNodes:
     def __init__(self, llm_service: LLMService):
         self.llm_service = llm_service
     
-    def analyze_conversation_topics(self, state: ConversationState) -> ConversationState:
+    def generate_session_summary(self, state: ConversationState) -> ConversationState:
         """
-        Analyze the full conversation to identify distinct topics for note generation
+        Generate a single comprehensive session summary from the full conversation
         """
-        print("🔍 Analyzing conversation for topics...")
+        print("📝 Generating session summary...")
         
         # Convert full conversation to format expected by LLM service
         conversation_dict = []
@@ -22,113 +22,59 @@ class AnalysisNodes:
                 "content": msg.content
             })
         
-        # Analyze topics using LLM
-        try:
-            topics = self.llm_service.analyze_conversation_topics(conversation_dict)
-            
-            if topics:
-                print(f"📋 Identified {len(topics)} topics:")
-                for i, topic in enumerate(topics, 1):
-                    print(f"   {i}. {topic}")
-                
-                state["identified_topics"] = topics
-            else:
-                print("❌ No topics identified")
-                state["identified_topics"] = []
-                
-        except Exception as e:
-            print(f"❌ Error analyzing topics: {e}")
-            state["identified_topics"] = []
-        
-        return state
-    
-    def generate_notes_for_topics(self, state: ConversationState) -> ConversationState:
-        """
-        Generate structured notes for each identified topic
-        """
-        print("📝 Generating notes for identified topics...")
-        
-        topics = state["identified_topics"]
-        if not topics:
-            print("⚠️ No topics to generate notes for")
+        if not conversation_dict:
+            print("⚠️ No conversation to summarize")
             state["generated_notes"] = {}
             return state
         
-        # Convert full conversation to format expected by LLM service
-        conversation_dict = []
-        for msg in state["full_conversation"]:
-            conversation_dict.append({
-                "role": msg.role,
-                "content": msg.content
-            })
-        
-        generated_notes = {}
-        
-        for topic in topics:
-            print(f"✍️ Generating note for: {topic}")
+        try:
+            # Generate session summary using LLM
+            session_content = self.llm_service.generate_session_summary(conversation_dict)
             
-            try:
-                note_content = self.llm_service.generate_note_for_topic(
-                    topic=topic,
-                    full_conversation=conversation_dict
-                )
+            if session_content:
+                # Use a single "Learning Session" key for the session summary
+                state["generated_notes"] = {"Learning Session": session_content}
+                print(f"✅ Generated session summary ({len(session_content)} chars)")
+            else:
+                print("❌ Failed to generate session summary")
+                state["generated_notes"] = {}
                 
-                if note_content:
-                    generated_notes[topic] = note_content
-                    print(f"✅ Generated note for: {topic} ({len(note_content)} chars)")
-                else:
-                    print(f"❌ Failed to generate note for: {topic}")
-                    
-            except Exception as e:
-                print(f"❌ Error generating note for {topic}: {e}")
-                continue
-        
-        state["generated_notes"] = generated_notes
-        
-        if generated_notes:
-            print(f"📚 Successfully generated {len(generated_notes)} notes")
-        else:
-            print("⚠️ No notes were generated")
+        except Exception as e:
+            print(f"❌ Error generating session summary: {e}")
+            state["generated_notes"] = {}
         
         return state
     
     def validate_generated_content(self, state: ConversationState) -> ConversationState:
         """
-        Validate that we have content to save and provide summary
+        Validate that we have session summary to save
         """
-        topics = state["identified_topics"]
         notes = state["generated_notes"]
         
         print("\n" + "=" * 50)
-        print("📊 CONTENT GENERATION SUMMARY")
+        print("📊 SESSION SUMMARY GENERATION")
         print("=" * 50)
         
-        if not topics:
-            print("❌ No topics identified from conversation")
-            return state
-        
         if not notes:
-            print("❌ No notes generated")
+            print("❌ No session summary generated")
             return state
         
-        print(f"✅ Topics identified: {len(topics)}")
-        print(f"✅ Notes generated: {len(notes)}")
-        
-        # Show preview of generated content
-        print("\n📋 Generated content preview:")
-        for topic, content in notes.items():
-            print(f"\n🔹 {topic}")
-            print(f"   Content length: {len(content)} characters")
-            print(f"   Preview: {content[:100]}...")
+        session_content = notes.get("Learning Session", "")
+        if session_content:
+            print(f"✅ Session summary generated")
+            print(f"📄 Content length: {len(session_content)} characters")
+            print(f"📋 Preview: {session_content[:150]}...")
+        else:
+            print("❌ Session summary is empty")
         
         print("\n" + "=" * 50)
-        print("✅ Content validation complete - ready to save!")
+        print("✅ Ready to save session summary!")
         
         return state
     
     def check_analysis_complete(self, state: ConversationState) -> str:
         """
-        Conditional edge: check if analysis and generation is complete
+        Conditional edge: check if session summary generation is complete
         """
         if state["generated_notes"]:
             return "save_notes"
@@ -137,9 +83,9 @@ class AnalysisNodes:
     
     def handle_analysis_failure(self, state: ConversationState) -> ConversationState:
         """
-        Handle case where topic analysis or note generation failed
+        Handle case where session summary generation failed
         """
-        print("❌ Analysis or note generation failed")
+        print("❌ Session summary generation failed")
         print("💬 Continuing conversation without saving notes")
         
         # Reset note-related state

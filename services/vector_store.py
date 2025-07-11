@@ -3,7 +3,7 @@ import glob
 from typing import List, Optional
 from dotenv import load_dotenv
 
-from llama_index.core import VectorStoreIndex, Document, Settings
+from llama_index.core import VectorStoreIndex, Document, Settings, StorageContext
 from llama_index.embeddings.voyageai import VoyageEmbedding
 from llama_index.vector_stores.chroma import ChromaVectorStore
 from llama_index.core.node_parser import SimpleNodeParser
@@ -38,14 +38,38 @@ class VectorStoreService:
         # Initialize indexes (will be None if paths don't exist)
         self.obsidian_index = None
         
+        # Try to load existing index or build new one
+        self._initialize_obsidian_index()
+    
+    def _initialize_obsidian_index(self):
+        """Initialize Obsidian index - try to load existing or build new"""
+        try:
+            # Try to load existing collection
+            collection = self.chroma_client.get_collection("obsidian_notes")
+            vector_store = ChromaVectorStore(chroma_collection=collection)
+            
+            # Create StorageContext from existing vector store
+            storage_context = StorageContext.from_defaults(vector_store=vector_store)
+            
+            # Create index from existing vector store with StorageContext
+            self.obsidian_index = VectorStoreIndex.from_vector_store(
+                vector_store=vector_store,
+                storage_context=storage_context,
+                embed_model=self.embed_model
+            )
+            
+        except Exception as e:
+            if self.build_obsidian_index():
+                pass  # Index built successfully
+            else:
+                pass  # Search will be unavailable
+    
     def _load_obsidian_documents(self) -> List[Document]:
         """Load all markdown files from Obsidian vault"""
         if not self.obsidian_path or not os.path.exists(self.obsidian_path):
-            print(f"Obsidian path not found: {self.obsidian_path}")
             return []
         
         documents = []
-        print(f"Loading documents from: {self.obsidian_path}")
         
         for md_file in glob.glob(f"{self.obsidian_path}/**/*.md", recursive=True):
             try:
@@ -54,6 +78,10 @@ class VectorStoreService:
                     
                     # Skip empty files
                     if not content.strip():
+                        continue
+                    
+                    # Skip very short files (less than 10 characters)
+                    if len(content.strip()) < 10:
                         continue
                     
                     # Create document with metadata
@@ -67,55 +95,54 @@ class VectorStoreService:
                         }
                     )
                     documents.append(doc)
-                    
+                
             except Exception as e:
-                print(f"Error reading {md_file}: {e}")
                 continue
         
-        print(f"Loaded {len(documents)} documents from Obsidian vault")
         return documents
     
     def build_obsidian_index(self) -> bool:
         """Build vector index for Obsidian vault"""
+        # Load documents
         documents = self._load_obsidian_documents()
         
         if not documents:
-            print("No documents found to index")
             return False
         
         try:
-            # Clear any existing collection to start fresh
+            # Clear existing collection
             try:
                 self.chroma_client.delete_collection("obsidian_notes")
             except:
-                pass  # Collection might not exist
+                pass
             
-            # Create ChromaDB collection
+            # Create ChromaDB collection and vector store
             collection = self.chroma_client.get_or_create_collection("obsidian_notes")
             vector_store = ChromaVectorStore(chroma_collection=collection)
             
-            # Build index with chunking - explicitly pass embed_model
-            print("Building vector index...")
+            # Create StorageContext with the vector store
+            storage_context = StorageContext.from_defaults(vector_store=vector_store)
+            
+            # Build index with StorageContext
             self.obsidian_index = VectorStoreIndex.from_documents(
                 documents,
-                vector_store=vector_store,
+                storage_context=storage_context,
                 node_parser=self.node_parser,
-                embed_model=self.embed_model,  # Explicitly pass the embedding model
+                embed_model=self.embed_model,
                 show_progress=True
             )
             
-            print("✅ Obsidian index built successfully!")
             return True
             
         except Exception as e:
-            print(f"❌ Error building index: {e}")
             return False
     
     def search_obsidian(self, query: str, top_k: int = 3) -> List[str]:
         """Search Obsidian vault using vector similarity"""
+        # If no index, try to build it
         if not self.obsidian_index:
-            print("Index not built. Call build_obsidian_index() first.")
-            return []
+            if not self.build_obsidian_index():
+                return []
         
         try:
             # Use retriever instead of query engine to avoid LLM requirements
@@ -126,14 +153,39 @@ class VectorStoreService:
             # Retrieve similar nodes
             nodes = retriever.retrieve(query)
             
+            if not nodes:
+                return []
+            
             results = []
             for node in nodes:
                 filename = node.metadata.get('filename', 'Unknown')
-                score = node.score if hasattr(node, 'score') else 'N/A'
-                results.append(f"File: {filename} (Score: {score})\n{node.text[:600]}...")
+                # Truncate content for context
+                content = node.text[:500] + "..." if len(node.text) > 500 else node.text
+                results.append(f"From: {filename}\n{content}")
             
             return results
             
         except Exception as e:
-            print(f"Error searching: {e}")
             return []
+    
+    def has_index(self) -> bool:
+        """Check if index is available"""
+        return self.obsidian_index is not None
+    
+    def get_index_stats(self) -> dict:
+        """Get statistics about the current index"""
+        if not self.obsidian_index:
+            return {"status": "no_index", "documents": 0}
+        
+        try:
+            # Get collection info from ChromaDB
+            collection = self.chroma_client.get_collection("obsidian_notes")
+            doc_count = collection.count()
+            
+            return {
+                "status": "ready",
+                "documents": doc_count,
+                "obsidian_path": self.obsidian_path
+            }
+        except Exception as e:
+            return {"status": "error", "error": str(e), "documents": 0}
