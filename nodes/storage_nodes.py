@@ -52,40 +52,27 @@ class StorageNodes:
     
     def reindex_knowledge_base(self, state: ConversationState) -> ConversationState:
         """
-        Re-index the vector store with new session summary (non-blocking)
+        Start asynchronous re-indexing of knowledge base
         """
-        saved_paths = state["obsidian_save_paths"]
-        
-        if not saved_paths:
-            print("⚠️ No new session summary to index")
-            state["reindexing_complete"] = True
-            return state
-        
         print("🔄 Starting knowledge base re-indexing...")
         
         def reindex_async():
             """Run re-indexing in background thread"""
             try:
-                print("   📊 Rebuilding vector index with new session summary...")
+                print("📊 Rebuilding vector index with new session summary...")
                 success = self.vector_service.build_obsidian_index()
-                
-                if success:
-                    print("   ✅ Re-indexing completed successfully!")
-                    print("   🔍 New session summary is now searchable in future conversations")
-                else:
-                    print("   ❌ Re-indexing failed")
-                    
             except Exception as e:
-                print(f"   ❌ Re-indexing error: {e}")
+                print(f"❌ Background re-indexing error: {e}")
         
         # Start re-indexing in background thread (non-blocking)
+        import threading
         reindex_thread = threading.Thread(target=reindex_async, daemon=True)
         reindex_thread.start()
         
-        # Mark as started (don't wait for completion)
-        state["reindexing_complete"] = True
-        print("🚀 Re-indexing started in background")
+        # Show completion message immediately
+        print("✅ Re-indexing started in background")
         
+        state["reindexing_complete"] = True
         return state
     
     def finalize_note_saving(self, state: ConversationState) -> ConversationState:

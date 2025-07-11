@@ -68,16 +68,20 @@ class LearningAssistantInterface:
             # Run the workflow
             self.current_state = self.workflow.chat(user_input, self.current_state)
             
-            # Display the response
+            # Display the response immediately if available
             response = self.current_state.get("llm_response", "")
             if response:
                 print(f"\n🤖 Assistant: {response}")
             
-            # Check if notes were generated
+            # Check if notes were generated and workflow completed
             if self.current_state.get("obsidian_save_paths"):
                 print("\n📚 Notes have been saved to your Obsidian vault!")
-                # Clear state after note saving for fresh start
+                print("💬 Ready for a new conversation!")
+                
+                # Clear state for fresh start
                 self.current_state = None
+            
+            return True
             
         except KeyboardInterrupt:
             print("\n⏸️ Interrupted by user")
@@ -85,8 +89,7 @@ class LearningAssistantInterface:
         except Exception as e:
             print(f"\n❌ Error processing message: {e}")
             print("💬 You can continue the conversation...")
-        
-        return True
+            return True
     
     def run(self):
         """
@@ -108,7 +111,7 @@ class LearningAssistantInterface:
                 should_continue = self.process_user_input(user_input)
                 if not should_continue:
                     break
-                    
+                
         except Exception as e:
             print(f"\n❌ Unexpected error: {e}")
             print("👋 Exiting...")

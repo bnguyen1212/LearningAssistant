@@ -129,7 +129,7 @@ class VectorStoreService:
                 storage_context=storage_context,
                 node_parser=self.node_parser,
                 embed_model=self.embed_model,
-                show_progress=True
+                show_progress=False
             )
             
             return True
