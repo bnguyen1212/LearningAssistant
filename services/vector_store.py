@@ -7,6 +7,7 @@ from llama_index.core import VectorStoreIndex, Document, Settings, StorageContex
 from llama_index.embeddings.voyageai import VoyageEmbedding
 from llama_index.vector_stores.chroma import ChromaVectorStore
 from llama_index.core.node_parser import SimpleNodeParser
+from llama_index.core.postprocessor import SimilarityPostprocessor
 import chromadb
 
 load_dotenv()
@@ -137,7 +138,7 @@ class VectorStoreService:
         except Exception as e:
             return False
     
-    def search_obsidian(self, query: str, top_k: int = 3, min_similarity: float = 0.7) -> List[str]:
+    def search_obsidian(self, query: str, top_k: int = 3, min_similarity: float = 0.4) -> List[str]:
         """Search Obsidian vault using vector similarity with minimum score threshold"""
         # If no index, try to build it
         if not self.obsidian_index:
@@ -145,28 +146,52 @@ class VectorStoreService:
                 return []
         
         try:
-            # Use retriever with similarity cutoff
+            # Get more raw results to filter manually
             retriever = self.obsidian_index.as_retriever(
-                similarity_top_k=top_k,
-                similarity_cutoff=min_similarity  # Only return results above this threshold
+                similarity_top_k=top_k
             )
             
-            # Retrieve similar nodes
-            nodes = retriever.retrieve(query)
+            # Retrieve raw nodes without postprocessor
+            raw_nodes = retriever.retrieve(query)
             
-            if not nodes:
+            if not raw_nodes:
+                print(f"🔍 No results found for query: '{query}'")
                 return []
             
-            results = []
-            for node in nodes:
+            # Manual filtering - only keep nodes above threshold
+            filtered_nodes = []
+            for node in raw_nodes:
+                score = getattr(node, 'score', None)
                 filename = node.metadata.get('filename', 'Unknown')
+                
+                if score is not None:
+                    # Only include if score meets minimum threshold
+                    if score >= min_similarity:
+                        filtered_nodes.append(node)
+                        print(f"      ✅ INCLUDED (>= {min_similarity})")
+            
+            # Check if we have any results after filtering
+            if not filtered_nodes:
+                print(f"🚫 No results found above similarity threshold {min_similarity}")
+                return []
+            
+            # Limit to requested number and format results
+            results = []
+            for node in filtered_nodes:
+                score = getattr(node, 'score', None)
+                filename = node.metadata.get('filename', 'Unknown')
+                
                 # Truncate content for context
                 content = node.text[:500] + "..." if len(node.text) > 500 else node.text
-                results.append(f"From: {filename}\n{content}")
+                
+                score_info = f" (similarity: {score:.4f})" if score is not None else ""
+                results.append(f"From: {filename}{score_info}\n{content}")
             
+            print(f"🎯 Returning {len(results)} results above threshold {min_similarity}")
             return results
         
         except Exception as e:
+            print(f"❌ Search error: {e}")
             return []
     
     def has_index(self) -> bool:
