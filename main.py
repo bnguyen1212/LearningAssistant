@@ -1,132 +1,103 @@
-import sys
-import os
-from typing import Optional
+from agent.learning_agent import LearningAgent
+from agent.tools import chat, storage
+from services.vector_store import VectorStoreService
+from services.llm_service import LLMService
+from services.obsidian_service import ObsidianService
 
-# Add current directory to Python path
-current_dir = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(current_dir)
+vector_service = VectorStoreService()
+llm_service = LLMService()
+obsidian_service = ObsidianService()
 
-from graph.workflow import create_learning_workflow
-from graph.state import ConversationState
-from dotenv import load_dotenv
-
-load_dotenv()
-
-class LearningAssistantInterface:
-    def __init__(self):
-        print("🚀 Initializing Learning Assistant...")
-        try:
-            self.workflow = create_learning_workflow()
-            self.current_state: Optional[ConversationState] = None
-            print("✅ Learning Assistant ready!")
-            self.show_welcome()
-        except Exception as e:
-            print(f"❌ Failed to initialize: {e}")
-            sys.exit(1)
-    
-    def show_welcome(self):
-        """Display welcome message and instructions"""
-        print("\n" + "=" * 60)
-        print("🎓 CONVERSATIONAL LEARNING ASSISTANT")
-        print("=" * 60)
-        print("💬 Chat naturally about any topic")
-        print("🔍 I'll search your knowledge base for relevant context")
-        print("📝 Say 'save this as notes' to capture learning insights")
-        print("❌ Type 'quit', 'exit', or 'bye' to end")
-        print("🔄 Type 'new' to start fresh conversation")
-        print("=" * 60)
-        print()
-    
-    def process_user_input(self, user_input: str) -> bool:
-        """
-        Process user input and return False if should quit
-        """
-        user_input = user_input.strip()
-        
-        # Handle special commands
-        if user_input.lower() in ['quit', 'exit', 'bye']:
-            print("👋 Goodbye! Happy learning!")
-            return False
-        
-        if user_input.lower() == 'new':
-            self.current_state = None
-            print("🆕 Starting fresh conversation...")
-            return True
-        
-        if user_input.lower() in ['help', '?']:
-            self.show_welcome()
-            return True
-        
-        if not user_input:
-            print("💭 Please enter a message...")
-            return True
-        
-        # Process through workflow
-        try:
-            print("\n🤔 Thinking...")
-            
-            # Run the workflow
-            self.current_state = self.workflow.chat(user_input, self.current_state)
-            
-            # Display the response immediately if available
-            response = self.current_state.get("llm_response", "")
-            if response:
-                print(f"\n🤖 Assistant: {response}")
-            
-            # Check if notes were generated and workflow completed
-            if self.current_state.get("obsidian_save_paths"):
-                print("\n📚 Notes have been saved to your Obsidian vault!")
-                print("💬 Ready for a new conversation!")
-                
-                # Clear state for fresh start
-                self.current_state = None
-            
-            return True
-            
-        except KeyboardInterrupt:
-            print("\n⏸️ Interrupted by user")
-            return True
-        except Exception as e:
-            print(f"\n❌ Error processing message: {e}")
-            print("💬 You can continue the conversation...")
-            return True
-    
-    def run(self):
-        """
-        Main conversation loop
-        """
-        try:
-            while True:
-                # Get user input
-                try:
-                    user_input = input("\n💭 You: ")
-                except KeyboardInterrupt:
-                    print("\n👋 Goodbye!")
-                    break
-                except EOFError:
-                    print("\n👋 Goodbye!")
-                    break
-                
-                # Process input
-                should_continue = self.process_user_input(user_input)
-                if not should_continue:
-                    break
-                
-        except Exception as e:
-            print(f"\n❌ Unexpected error: {e}")
-            print("👋 Exiting...")
-
-def main():
+def chat_with_context_tool(user_message: str) -> dict:
     """
-    Entry point for the Learning Assistant
+    Fetch relevant context from the Obsidian vault using a semantic search.
+
+    Args:
+        user_message (str): The user's query or message to search for relevant context.
+
+    Returns:
+        dict: {
+            "vault_context": list of relevant context strings,
+            "referenced_files": list of filenames referenced in the context
+        }
     """
-    try:
-        assistant = LearningAssistantInterface()
-        assistant.run()
-    except KeyboardInterrupt:
-        print("\n👋 Goodbye!")
-    except Exception as e:
-        print(f"❌ Failed to start Learning Assistant: {e}")
+    return chat.chat_with_context(user_message=user_message, vector_service=vector_service)
+
+
+def save_session_tool(
+    referenced_files: list
+) -> str:
+    """
+    Save a session note to Obsidian using the provided summary, topics, subject, referenced files, and llm_service.
+
+    Args:
+        referenced_files (list): List of referenced file names.
+
+    Returns:
+        str: Path of the saved session note.
+    """
+    return storage.save_session(referenced_files, llm_service, obsidian_service)
+
+tools = [
+    chat_with_context_tool,
+    save_session_tool,
+]
+
+llm_with_tools = llm_service.llm.bind_tools(tools)
+agent = LearningAgent(llm_with_tools)
+
+
+def manual_reasoning_loop():
+    print("Learning Assistant (type 'exit' to quit)")
+    referenced_files_state = set()
+    while True:
+        user_input = input("You: ")
+        if user_input.lower() in ("exit", "quit"):
+            break
+
+        # Step 1: Get initial response from agent/LLM
+        response = agent.process_user_message(user_input)
+        content = getattr(response, "content", response)
+
+        # Step 2: Check if the response contains tool calls
+        # If content is a list, look for tool_use dicts
+        if isinstance(content, list):
+            for item in content:
+                if isinstance(item, dict) and item.get("type") == "tool_use":
+                    tool_name = item.get("name")
+                    tool_input = item.get("input", {})
+                    # Find the tool function by name
+                    tool_func = None
+                    for t in tools:
+                        if hasattr(t, "__name__") and t.__name__ == tool_name:
+                            tool_func = t
+                            break
+                    if tool_func:
+                        try:
+                            # For save_session_tool, always use accumulated referenced_files
+                            if tool_name == "save_session_tool":
+                                tool_input["referenced_files"] = list(referenced_files_state)
+                            tool_result = tool_func(**tool_input)
+                            print(f"[Tool '{tool_name}' result]: {tool_result}")
+                            # If the tool is chat_with_context_tool, accumulate referenced files
+                            if tool_name == "chat_with_context_tool" and isinstance(tool_result, dict):
+                                new_refs = tool_result.get("referenced_files", [])
+                                referenced_files_state.update(new_refs)
+                                print(f"[Accumulated referenced files]: {sorted(referenced_files_state)}")
+                            # If the tool is save_session_tool, print the referenced files used
+                            if tool_name == "save_session_tool":
+                                print(f"[Session saved with referenced files]: {sorted(referenced_files_state)}")
+                        except Exception as e:
+                            print(f"[Tool '{tool_name}' error]: {e}")
+                    else:
+                        print(f"[Tool '{tool_name}' not found]")
+                elif item.get("type") == "text":
+                    print("Assistant:", item.get("text", ""))
+        elif isinstance(content, str):
+            print("Assistant:", content)
+        else:
+            # Fallback for other response types
+            print("Assistant:", content)
 
 if __name__ == "__main__":
-    main()
+    manual_reasoning_loop()
