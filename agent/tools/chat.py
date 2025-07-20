@@ -14,7 +14,6 @@ def chat_with_context(
     referenced_files = []
     try:
         vault_context, referenced_files = vector_service.search_obsidian(user_message)
-        print("Chat with vault search used! - chat.py")
     except Exception as e:
         print("I encountered an error using chat_with_context tool")
     return {

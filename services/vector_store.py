@@ -143,7 +143,6 @@ class VectorStoreService:
                 return [], []
         
         try:
-            print("service was tried")
             retriever = self.obsidian_index.as_retriever(
                 similarity_top_k=config.VECTOR_SEARCH_TOP_K
             )
@@ -169,7 +168,7 @@ class VectorStoreService:
             # Check if we have any results after filtering
             if not results:
                 print(f"No results found above similarity threshold {config.VECTOR_SIMILARITY_THRESHOLD}")
-                return ["No relevant context was found in the vault."], []
+                return [], []
             
             return results, list(referenced_files)
         

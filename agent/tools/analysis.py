@@ -6,6 +6,7 @@ def summarize_session(llm_service) -> dict:
     Returns a dict with keys: 'subject', 'summary', 'topics'
     """
     conversation_text = conversation_manager.get_conversation_for_summary() 
+    print(conversation_text)
     prompt = SESSION_SUMMARY_TEMPLATE.format(conversation_text=conversation_text)
     try:
         response = llm_service.invoke_prompt(prompt)

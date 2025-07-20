@@ -84,6 +84,9 @@ def manual_reasoning_loop():
                                 new_refs = tool_result.get("referenced_files", [])
                                 referenced_files_state.update(new_refs)
                                 print(f"[Accumulated referenced files]: {sorted(referenced_files_state)}")
+                                if not tool_result.get("vault_context"):
+                                    followup = llm_service.invoke_prompt(f"No relevant context was found. Please answer the user's question using your own knowledge: {tool_input.get('user_message','')}")
+                                    print("Assistant:", getattr(followup, "content", followup))
                             # If the tool is save_session_tool, print the referenced files used
                             if tool_name == "save_session_tool":
                                 print(f"[Session saved with referenced files]: {sorted(referenced_files_state)}")
