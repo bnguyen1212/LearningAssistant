@@ -4,38 +4,27 @@ chroma_db/
 *.sqlite3
 *.db
 
-# Python cache
+# Conversation history (contains personal learning data)
+conversation_history/
+
+# Environment variables
+.env
+
+# Python
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
 .Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
+env/
+venv/
+.venv/
 
-# Environment variables
-.env
-
-# IDE files
-.vscode/
+# IDE
+.vscode/settings.json
 .idea/
-*.swp
-*.swo
 
-# OS files
+# OS
 .DS_Store
 Thumbs.db
 

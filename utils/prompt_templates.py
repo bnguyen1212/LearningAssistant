@@ -22,36 +22,24 @@ CONTEXT_MESSAGE_TEMPLATE = """Context from your knowledge base:
 
 {user_message}"""
 
-# Prompt for generating comprehensive session summaries
-SESSION_SUMMARY_PROMPT = """Based on this learning conversation, create a comprehensive session summary.
+SESSION_SUMMARY_TEMPLATE = """Given the following conversation, please:
 
+1. Generate a concise subject line under 30 charactes that captures the main theme of the session in title format.
+2. Write a comprehensive markdown-formatted summary, including key points, insights, and important details.
+3. Extract only 3-5 main topics as a comma-separated list (use lowercase, underscores for spaces).
+
+Format your response as follows:
+
+Subject Line:
+<subject line here>
+
+Session Summary:
+<markdown summary here>
+
+Topics:
+<topic1>, <topic2>, <topic3>, ...
+  
 Conversation:
 {conversation_text}
 
-Create a well-structured markdown summary that:
-1. Captures the main topics and concepts discussed
-2. Highlights key insights and learning points
-3. Includes important details, examples, and explanations
-4. Notes any questions raised or areas for further exploration
-5. Organizes information clearly with headers and bullet points
-6. Serves as a valuable reference for future learning
-
-Make it comprehensive but well-organized. This should be a complete learning record of the session.
-
-Session Summary:"""
-
-TOPIC_EXTRACTION_PROMPT = """
-Analyze this conversation and extract 3-5 main topics/themes for tagging purposes.
-
-Requirements:
-- Return topics as lowercase, single words or short phrases
-- Use underscores instead of spaces (e.g., "machine_learning")
-- Focus on the main subjects discussed
-- Avoid generic words like "discussion" or "conversation"
-- Prioritize technical terms, concepts, or specific domains
-
-Conversation:
-{conversation_text}
-
-Return only the topics, separated by commas:
 """
