@@ -1,36 +1,33 @@
 import os
 import glob
-from typing import List, Optional
+from typing import List 
 from dotenv import load_dotenv
 
-from llama_index.core import VectorStoreIndex, Document, Settings, StorageContext
+from llama_index.core import VectorStoreIndex, Document, StorageContext
 from llama_index.embeddings.voyageai import VoyageEmbedding
 from llama_index.vector_stores.chroma import ChromaVectorStore
 from llama_index.core.node_parser import SimpleNodeParser
-from llama_index.core.postprocessor import SimilarityPostprocessor
 import chromadb
+
+from core.config import config
 
 load_dotenv()
 
 class VectorStoreService:
     def __init__(self):
+
         # Initialize Voyage AI embeddings with voyage-3-lite
         self.embed_model = VoyageEmbedding(
-            api_key=os.getenv("VOYAGE_API_KEY"),
-            model_name="voyage-3-lite"
+            voyage_api_key=config.VOYAGE_API_KEY,
+            model_name=config.EMBED_MODEL
         )
         
-        # Set global settings - this is crucial for query time
-        Settings.embed_model = self.embed_model
-        
-        # Get paths from environment
-        self.obsidian_path = os.getenv("OBSIDIAN_VAULT_PATH")
-        self.code_path = os.getenv("CODE_PATH")
+        self.obsidian_path = config.OBSIDIAN_VAULT_PATH
         
         # Initialize node parser for chunking
         self.node_parser = SimpleNodeParser.from_defaults(
-            chunk_size=512,
-            chunk_overlap=50
+            chunk_size=config.NODE_CHUNK_SIZE,
+            chunk_overlap=config.NODE_CHUNK_OVERLAP
         )
         
         # Initialize ChromaDB client
@@ -46,7 +43,7 @@ class VectorStoreService:
         """Initialize Obsidian index - try to load existing or build new"""
         try:
             # Try to load existing collection
-            collection = self.chroma_client.get_collection("obsidian_notes")
+            collection = self.chroma_client.get_collection(config.CHROMA_COLLECTION_NAME)
             vector_store = ChromaVectorStore(chroma_collection=collection)
             
             # Create StorageContext from existing vector store
@@ -113,12 +110,12 @@ class VectorStoreService:
         try:
             # Clear existing collection
             try:
-                self.chroma_client.delete_collection("obsidian_notes")
+                self.chroma_client.delete_collection(config.CHROMA_COLLECTION_NAME)
             except:
                 pass
             
             # Create ChromaDB collection and vector store
-            collection = self.chroma_client.get_or_create_collection("obsidian_notes")
+            collection = self.chroma_client.get_or_create_collection(config.CHROMA_COLLECTION_NAME)
             vector_store = ChromaVectorStore(chroma_collection=collection)
             
             # Create StorageContext with the vector store
@@ -138,65 +135,47 @@ class VectorStoreService:
         except Exception as e:
             return False
     
-    def search_obsidian(self, query: str, top_k: int = 3, min_similarity: float = 0.4) -> List[str]:
-        """Search Obsidian vault using vector similarity with minimum score threshold"""
+    def search_obsidian(self, query: str) -> tuple[List[str], List[str]]:
+        """Search Obsidian vault and return results + referenced filenames"""
         # If no index, try to build it
         if not self.obsidian_index:
             if not self.build_obsidian_index():
-                return []
+                return [], []
         
         try:
-            # Get more raw results to filter manually
+            print("service was tried")
             retriever = self.obsidian_index.as_retriever(
-                similarity_top_k=top_k
+                similarity_top_k=config.VECTOR_SEARCH_TOP_K
             )
             
             # Retrieve raw nodes without postprocessor
             raw_nodes = retriever.retrieve(query)
             
             if not raw_nodes:
-                print(f"🔍 No results found for query: '{query}'")
-                return []
+                print(f"No results found for query: '{query}'")
+                return [], []
             
             # Manual filtering - only keep nodes above threshold
-            filtered_nodes = []
+            results = []
+            referenced_files = set()
             for node in raw_nodes:
                 score = getattr(node, 'score', None)
                 filename = node.metadata.get('filename', 'Unknown')
-                
-                if score is not None:
-                    # Only include if score meets minimum threshold
-                    if score >= min_similarity:
-                        filtered_nodes.append(node)
-                        print(f"      ✅ INCLUDED (>= {min_similarity})")
+                if score is not None and score >= config.VECTOR_SIMILARITY_THRESHOLD:
+                    referenced_files.add(filename)
+                    content = node.text[:500] + "..." if len(node.text) > 500 else node.text
+                    results.append(content)  # Only add content, not score, for LLM
             
             # Check if we have any results after filtering
-            if not filtered_nodes:
-                print(f"🚫 No results found above similarity threshold {min_similarity}")
-                return []
+            if not results:
+                print(f"No results found above similarity threshold {config.VECTOR_SIMILARITY_THRESHOLD}")
+                return ["No relevant context was found in the vault."], []
             
-            # Limit to requested number and format results
-            results = []
-            for node in filtered_nodes:
-                score = getattr(node, 'score', None)
-                filename = node.metadata.get('filename', 'Unknown')
-                
-                # Truncate content for context
-                content = node.text[:500] + "..." if len(node.text) > 500 else node.text
-                
-                score_info = f" (similarity: {score:.4f})" if score is not None else ""
-                results.append(f"From: {filename}{score_info}\n{content}")
-            
-            print(f"🎯 Returning {len(results)} results above threshold {min_similarity}")
-            return results
+            return results, list(referenced_files)
         
         except Exception as e:
-            print(f"❌ Search error: {e}")
-            return []
-    
-    def has_index(self) -> bool:
-        """Check if index is available"""
-        return self.obsidian_index is not None
+            print(f"Search error: {e}")
+            return [], []
     
     def get_index_stats(self) -> dict:
         """Get statistics about the current index"""
@@ -205,7 +184,7 @@ class VectorStoreService:
         
         try:
             # Get collection info from ChromaDB
-            collection = self.chroma_client.get_collection("obsidian_notes")
+            collection = self.chroma_client.get_collection(config.CHROMA_COLLECTION_NAME)
             doc_count = collection.count()
             
             return {
