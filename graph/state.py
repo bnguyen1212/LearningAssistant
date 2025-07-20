@@ -28,6 +28,7 @@ class ConversationState(TypedDict):
     identified_topics: List[str]
     generated_notes: Dict[str, str]  # topic -> note content
     obsidian_save_paths: List[str]
+    referenced_files: set
     
     # Processing flags
     reindexing_complete: bool

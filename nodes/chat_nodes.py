@@ -12,100 +12,48 @@ class ChatNodes:
     
     def chat_with_context(self, state: ConversationState) -> ConversationState:
         """
-        Main chat node: search for context and respond to user
+        Generate chat response OR skip directly to summary if note request detected
         """
-        user_message = state["current_user_message"]
-        
-        # Check if user requested note generation FIRST
-        note_requested = self.llm_service.detect_note_request(user_message)
-        state["note_request_detected"] = note_requested
-        
-        if note_requested:
-            # Just add the user message to conversation
-            user_msg = Message(
-                role="user",
-                content=user_message,
-                timestamp=datetime.now()
-            )
-            state["full_conversation"].append(user_msg)
+        # Check if note request was detected - if so, skip chat and prep for summary
+        if state.get("note_request_detected", False):
+            print("📝 Note request detected - preparing for summary generation...")
             
-            # Clear these since we're not generating a response
-            state["relevant_context"] = []
-            state["llm_response"] = ""
+            # Set minimal required state for summary generation
+            state["llm_response"] = "Generating session summary..."
             
+            # Don't search for new context - we'll use existing conversation
             return state
         
-        # Normal chat flow - search for context and generate response
-        print(f"🔍 Searching knowledge base for: '{user_message[:50]}...'")
-        relevant_context = self.vector_service.search_obsidian(user_message, top_k=3)
+        # Normal chat flow when no note request
+        user_message = state["current_user_message"]
+        conversation_history = state["recent_messages"]
         
-        # Get recent messages for LLM context (last 3)
-        recent_messages = []
-        if state["full_conversation"]:
-            # Convert Message objects to dict format for LLM service
-            recent_msgs = state["full_conversation"][-6:]  # Last 6 messages (3 exchanges)
-            recent_messages = [
-                {"role": msg.role, "content": msg.content} 
-                for msg in recent_msgs
-            ]
+        # Search for relevant context and track referenced files
+        relevant_context, referenced_files = self.vector_service.search_obsidian(user_message, top_k=3)
         
-        # Get LLM response
-        print("💭 Generating response...")
-        llm_response = self.llm_service.chat_with_context(
-            user_message=user_message,
-            recent_messages=recent_messages,
-            relevant_context=relevant_context
-        )
+        # Store referenced files in state
+        state["referenced_files"] = state.get("referenced_files", set())
+        state["referenced_files"].update(referenced_files)
         
-        # Create message objects
-        user_msg = Message(
-            role="user",
-            content=user_message,
-            timestamp=datetime.now()
-        )
-        
-        assistant_msg = Message(
-            role="assistant", 
-            content=llm_response,
-            timestamp=datetime.now()
-        )
-        
-        # Update state
-        state["full_conversation"].append(user_msg)
-        state["full_conversation"].append(assistant_msg)
-        
-        # Update recent messages (last 6 messages for next iteration)
-        state["recent_messages"] = state["full_conversation"][-6:]
-        
+        # Store relevant context in state
         state["relevant_context"] = relevant_context
-        state["llm_response"] = llm_response
         
-        return state
+        try:
+            # Use the existing LLMService method
+            response = self.llm_service.chat_with_context(
+                user_message=user_message,
+                recent_messages=conversation_history,
+                relevant_context=relevant_context
+            )
+            
+            state["llm_response"] = response
+            
+            print(f"🔗 Referenced files: {', '.join(referenced_files) if referenced_files else 'None'}")
+            
+            return state
+            
+        except Exception as e:
+            print(f"❌ Error generating response: {e}")
+            state["llm_response"] = "I encountered an error generating a response. Please try again."
+            return state
     
-    def should_generate_notes(self, state: ConversationState) -> str:
-        """
-        Conditional edge: determine if we should generate notes or continue chatting
-        """
-        if state["note_request_detected"]:
-            return "generate_notes"
-        else:
-            return "continue_chat"
-    
-    def clear_conversation(self, state: ConversationState) -> ConversationState:
-        """
-        Clear conversation after notes are saved (fresh start)
-        """
-        print("🧹 Clearing conversation history for fresh start...")
-        
-        state["full_conversation"] = []
-        state["recent_messages"] = []
-        state["current_user_message"] = ""
-        state["relevant_context"] = []
-        state["llm_response"] = ""
-        state["note_request_detected"] = False
-        state["identified_topics"] = []
-        state["generated_notes"] = {}
-        state["obsidian_save_paths"] = []
-        state["reindexing_complete"] = False
-        
-        return state

@@ -122,7 +122,6 @@ class LearningWorkflow:
             state = existing_state.copy()
             state["current_user_message"] = user_message
             # Reset note-related fields for new interaction
-            state["note_request_detected"] = False
             state["relevant_context"] = []
             state["llm_response"] = ""
         

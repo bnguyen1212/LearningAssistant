@@ -11,28 +11,30 @@ class StorageNodes:
         self.vector_service = vector_service
     
     def save_notes_to_obsidian(self, state: ConversationState) -> ConversationState:
-        """Save generated notes to Obsidian vault with topic-based tags"""
+        """Save generated notes to Obsidian vault with topic-based tags and backlinks"""
         
         notes = state["generated_notes"]
-        topics = state.get("identified_topics", [])  # Get extracted topics
+        topics = state.get("conversation_topics", [])
+        referenced_files = list(state.get("referenced_files", set()))  # Convert set to list
         
         if not notes:
             state["obsidian_save_paths"] = []
             return state
         
         try:
-            # Extract session name from first user message for folder naming
+            # Extract session name from first user message
             conversation = state["full_conversation"]
             session_name = None
             if conversation:
                 first_message = conversation[0].content
-                session_name = first_message[:50]  # First 50 chars as session name
+                session_name = first_message[:50]
             
-            # Save notes with topics as tags
+            # Save notes with topics and referenced files
             saved_paths = self.obsidian_service.save_session_notes(
                 notes, 
                 session_name,
-                topics=topics  # Pass topics for tagging
+                topics=topics,
+                referenced_files=referenced_files  # Pass referenced files
             )
             
             state["obsidian_save_paths"] = saved_paths
