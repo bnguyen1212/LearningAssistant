@@ -47,7 +47,7 @@ agent = LearningAgent(llm_with_tools)
 
 def manual_reasoning_loop():
     print("Learning Assistant (type 'exit' to quit)")
-    referenced_files_state = set()
+    # Use referenced_files_state from conversation_manager for persistence
     print(vector_service.get_index_stats())
     while True:
         user_input = input("You: ")
@@ -84,7 +84,7 @@ def manual_reasoning_loop():
                                 tool_result = chat_with_context_tool(tool_input.get("user_message"))
                                 if isinstance(tool_result, dict):
                                     new_refs = tool_result.get("referenced_files", [])
-                                    referenced_files_state.update(new_refs)
+                                    conversation_manager.referenced_files_state.update(new_refs)
                                 vault_context = tool_result.get("vault_context", [])
                                 if isinstance(vault_context, list):
                                     vault_context_str = "\n".join(str(x) for x in vault_context)
@@ -98,9 +98,9 @@ def manual_reasoning_loop():
                                 #print("Assistant: ", followup)
                             # If the tool is save_session_tool, print the referenced files used
                             if tool_name == "save_session_tool":
-                                tool_input["referenced_files"] = list(referenced_files_state)
+                                tool_input["referenced_files"] = list(conversation_manager.referenced_files_state)
                                 tool_result = tool_func(**tool_input)
-                                print(f"[Session saved with referenced files]: {sorted(referenced_files_state)}")
+                                print(f"[Session saved with referenced files]: {sorted(conversation_manager.referenced_files_state)}")
                         except Exception as e:
                             print(f"[Tool '{tool_name}' error]: {e}")
                     else:

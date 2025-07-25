@@ -12,6 +12,7 @@ class ConversationManager:
         self.history_dir.mkdir(exist_ok=True)
         self.session_id = "main_session"
         self.active_session: List[Dict] = []
+        self.referenced_files_state = set()
         self._load_session()
 
     def add_message(self, role: str, content: str) -> None:
@@ -58,6 +59,7 @@ class ConversationManager:
     def clear_session(self) -> None:
         """Clear the main conversation session"""
         self.active_session = []
+        self.referenced_files_state = set()
         if config.ENABLE_TOOL_DEBUGGING:
             print("Cleared main session.")
 
@@ -88,28 +90,41 @@ class ConversationManager:
             self._save_session()
 
     def _save_session(self) -> None:
-        """Save the main session to JSON file"""
+        """Save the main session and referenced files to JSON file"""
         file_path = self.history_dir / f"{self.session_id}.json"
+        data = {
+            "active_session": self.active_session,
+            "referenced_files_state": list(self.referenced_files_state)
+        }
         try:
             with open(file_path, 'w', encoding='utf-8') as f:
-                json.dump(self.active_session, f, indent=2, ensure_ascii=False)
+                json.dump(data, f, indent=2, ensure_ascii=False)
         except Exception as e:
             if config.ENABLE_TOOL_DEBUGGING:
                 print(f"Failed to save main session: {e}")
 
     def _load_session(self) -> None:
-        """Load the main session from JSON file"""
+        """Load the main session and referenced files from JSON file"""
         file_path = self.history_dir / f"{self.session_id}.json"
         if file_path.exists():
             try:
                 with open(file_path, 'r', encoding='utf-8') as f:
-                    self.active_session = json.load(f)
+                    data = json.load(f)
+                    if isinstance(data, dict) and "active_session" in data:
+                        self.active_session = data.get("active_session", [])
+                        self.referenced_files_state = set(data.get("referenced_files_state", []))
+                    else:
+                        # Backward compatibility: old format (just a list)
+                        self.active_session = data
+                        self.referenced_files_state = set()
             except Exception as e:
                 if config.ENABLE_TOOL_DEBUGGING:
                     print(f"Failed to load main session: {e}")
                 self.active_session = []
+                self.referenced_files_state = set()
         else:
             self.active_session = []
+            self.referenced_files_state = set()
 
     def save_all_sessions(self) -> None:
         """Save the main session (for compatibility with shutdown hooks)"""
