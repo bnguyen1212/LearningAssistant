@@ -57,11 +57,24 @@ class ConversationManager:
 
     def clear_session(self) -> None:
         """Clear the main conversation session"""
-        if config.SAVE_RAW_CONVERSATIONS:
-            self._save_session()
         self.active_session = []
         if config.ENABLE_TOOL_DEBUGGING:
             print("Cleared main session.")
+
+    def clear_main_session_file(self) -> None:
+        """Delete the main_session.json file from disk (does not affect in-memory session)."""
+        file_path = self.history_dir / f"{self.session_id}.json"
+        if file_path.exists():
+            try:
+                file_path.unlink()
+                if config.ENABLE_TOOL_DEBUGGING:
+                    print("Deleted main_session.json from disk.")
+            except Exception as e:
+                if config.ENABLE_TOOL_DEBUGGING:
+                    print(f"Failed to delete main_session.json: {e}")
+        else:
+            if config.ENABLE_TOOL_DEBUGGING:
+                print("main_session.json does not exist.")
 
     def mark_session_as_saved(self, obsidian_path: str) -> None:
         """Mark that this session has been saved to Obsidian"""

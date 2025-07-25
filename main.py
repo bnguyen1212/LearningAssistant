@@ -52,7 +52,13 @@ def manual_reasoning_loop():
     while True:
         user_input = input("You: ")
         if user_input.lower() in ("exit", "quit"):
+            conversation_manager._save_session()
             break
+
+        if user_input.lower() in ("new", "clear"):
+            conversation_manager.clear_session()
+            conversation_manager.clear_main_session_file()
+            continue
 
         # Step 1: Get initial response from agent/LLM
         response = agent.process_user_message(user_input)
