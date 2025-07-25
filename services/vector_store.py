@@ -160,6 +160,7 @@ class VectorStoreService:
             for node in raw_nodes:
                 score = getattr(node, 'score', None)
                 filename = node.metadata.get('filename', 'Unknown')
+                print(f"File: {filename}, score: {score}")
                 if score is not None and score >= config.VECTOR_SIMILARITY_THRESHOLD:
                     referenced_files.add(filename)
                     content = node.text[:500] + "..." if len(node.text) > 500 else node.text
@@ -193,3 +194,4 @@ class VectorStoreService:
             }
         except Exception as e:
             return {"status": "error", "error": str(e), "documents": 0}
+vector_service = VectorStoreService()

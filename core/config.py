@@ -12,13 +12,13 @@ class AgentConfig:
     def __init__(self):
         """Initialize instance with configuration values"""
         # LLM Settings
-        self.LLM_MODEL: str = "claude-3-haiku-20240307"
+        self.LLM_MODEL: str = "claude-sonnet-4-20250514"
         self.LLM_TEMPERATURE: float = 0.1
         self.LLM_MAX_TOKENS: 20000
         
         # Agent Settings
         self.MAX_TOOL_ITERATIONS: int = 5
-        self.MAX_CONVERSATION_HISTORY: int = 8
+        self.MAX_CONVERSATION_HISTORY: int = 2
         self.ENABLE_TOOL_DEBUGGING: bool = False
         
         # Vector Store Settings

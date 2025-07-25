@@ -10,7 +10,6 @@ class LearningAgent:
         """
         Args:
             llm: The language model instance (must have a .invoke() or .generate() method)
-            tools: Optional dict of tool functions (e.g., search, save, analyze)
         """
         self.llm = llm
         self.referenced_files = set()
@@ -22,21 +21,13 @@ class LearningAgent:
         # Add user message to conversation history
         conversation_manager.add_message("user", user_message)
 
-        # Prepare context for the LLM
-        context = conversation_manager.get_recent_context(config.MAX_CONVERSATION_HISTORY)
-
-        # Compose prompt for the LLM
         prompt = (
-            f"Conversation so far:\n{context}\n\n"
             f"User: {user_message}\n"
             "Assistant:"
         )
 
         # Get response from the LLM
         agent_response = self.llm.invoke(prompt)
-
-        # Add agent response to conversation history
-        conversation_manager.add_message("assistant", agent_response)
 
         return agent_response
 

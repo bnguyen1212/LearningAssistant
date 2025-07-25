@@ -2,6 +2,7 @@ from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 from core.config import config
 from utils.prompt_templates import CHAT_SYSTEM_PROMPT
+from core.conversation import conversation_manager
 
 class LLMService:
     def __init__(self):
@@ -26,9 +27,16 @@ class LLMService:
 
     def invoke_prompt(self, prompt: str): #Stateless
         """
-        Directly invoke the LLM with a single prompt string, always with system prompt.
+        Directly invoke the LLM with a single prompt string, always with system prompt and recent context.
         """
-        return self.llm.invoke([
-            SystemMessage(content=self.system_prompt),
-            HumanMessage(content=prompt)
-        ])
+        messages = [SystemMessage(content=self.system_prompt)]
+        recent_messages = conversation_manager.get_history()
+        if recent_messages:
+            messages.extend(recent_messages)
+            print(f"Recent messages: {recent_messages}")
+        messages.append((HumanMessage(content=prompt)))
+        print(f"LLM Invoked: {messages}")
+        return self.llm.invoke(
+            messages
+        )
+llm_service = LLMService()

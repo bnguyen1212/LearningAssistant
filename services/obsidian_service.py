@@ -49,7 +49,7 @@ class ObsidianService:
         if session_name:
             # Clean the session name for use as filename
             clean_name = self.sanitize_filename(session_name)
-            clean_name = clean_name[:30]  # Limit length
+            clean_name = clean_name[:100]  # Limit length
             filename = f"{clean_name}_{timestamp}.md"
         else:
             filename = f"Learning_Session_{timestamp}.md"
@@ -97,7 +97,6 @@ created: {datetime.now().isoformat()}
 type: learning_session_summary
 daily_folder: {daily_folder.name}
 tags: {tags_yaml}
-referenced_files: {referenced_files if referenced_files else []}
 ---
 
 # Learning Session Summary
@@ -114,13 +113,13 @@ referenced_files: {referenced_files if referenced_files else []}
             if referenced_files:
                 self._add_backlinks_to_referenced_files(referenced_files, filename, daily_folder.name)
             
-            print(f"✅ Saved session summary: {filename}")
+            print(f"Saved session summary: {filename}")
             if referenced_files:
-                print(f"🔗 Added backlinks to {len(referenced_files)} files")
+                print(f"Added backlinks to {len(referenced_files)} files")
             return str(summary_path)
             
         except Exception as e:
-            print(f"❌ Failed to save session summary: {e}")
+            print(f"Failed to save session summary: {e}")
             return ""
     
     def _add_backlinks_to_referenced_files(self, referenced_files: List[str], session_filename: str, daily_folder_name: str):
@@ -132,7 +131,7 @@ referenced_files: {referenced_files if referenced_files else []}
                 # Find the actual file path
                 ref_file_path = self._find_file_in_vault(ref_filename)
                 if not ref_file_path:
-                    print(f"⚠️ Could not find file: {ref_filename}")
+                    print(f"Could not find file: {ref_filename}")
                     continue
                 
                 # Read current content
@@ -144,12 +143,12 @@ referenced_files: {referenced_files if referenced_files else []}
                     continue
                 
                 # Add backlink section
-                backlink_section = f"\n\n## Learning Sessions\n\n- {session_link}\n"
+                backlink_section = f"\n\n## References\n\n- {session_link}\n"
                 
                 # Check if "Learning Sessions" section already exists
-                if "## Learning Sessions" in content:
+                if "## References" in content:
                     # Add to existing section
-                    content = content.replace("## Learning Sessions", f"## Learning Sessions\n\n- {session_link}")
+                    content = content.replace("## References", f"## References\n\n- {session_link}")
                 else:
                     # Add new section at the end
                     content += backlink_section
@@ -158,7 +157,7 @@ referenced_files: {referenced_files if referenced_files else []}
                 with open(ref_file_path, 'w', encoding='utf-8') as f:
                     f.write(content)
                 
-                print(f"🔗 Added backlink to {ref_filename}")
+                print(f"Added backlink to {ref_filename}")
                 
             except Exception as e:
                 print(f"❌ Failed to add backlink to {ref_filename}: {e}")
@@ -232,3 +231,4 @@ referenced_files: {referenced_files if referenced_files else []}
             "created": datetime.fromtimestamp(session_path.stat().st_ctime),
             "file_path": str(session_path)
         }
+obsidian_service = ObsidianService()
