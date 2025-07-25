@@ -66,33 +66,50 @@ LearningAssistant/
 
 ### Session Summary Format
 
-Session summaries are automatically generated and saved to your Obsidian vault. The format includes:
+Session summaries are automatically saved to your Obsidian vault in a daily folder structure, with unique filenames and backlinks to referenced files.
 
-- Timestamp and session ID
-- Main topics discussed
-- Key insights
-- Questions raised
-- Next steps
+**File Structure:**
 
-**Example:**
+```
+<OBSIDIAN_DAILY_NOTES_FOLDER>/
+    July 25, 2025/
+        What_is_machine_143022.md
+```
+
+**Session Summary Example:**
 
 ```markdown
 ---
 created: 2025-07-11T14:30:22
 type: learning_session_summary
-session: 20250711_143022_What_is_machine
+daily_folder: July 11, 2025
 tags: [learning, session, summary]
 ---
 
 # Learning Session Summary
 
-**Session:** 20250711_143022_What_is_machine  
-**Date:** 2025-07-11 14:30:22
+<session summary content>
 
-## Main Topics Discussed
+## Referenced Files
 
-... (see above for full example)
+- [[Some_Note]]
+- [[Another_Note]]
 ```
+
+**Backlinks:**
+
+- For every referenced file, a backlink is automatically added to the original note under a `## References` section:
+  ```markdown
+  ## References
+
+  - [[Daily Notes/July 11, 2025/What_is_machine_143022]]
+  ```
+
+**File Naming:**
+
+- Session summaries are named as `<SessionName>_<HHMMSS>.md` for uniqueness and clarity.
+
+This structure ensures easy navigation, traceability, and rich interlinking between your learning sessions and your existing notes.
 
 ---
 
