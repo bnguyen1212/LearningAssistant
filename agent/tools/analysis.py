@@ -8,8 +8,9 @@ def summarize_session(llm_service) -> dict:
     conversation_text = conversation_manager.get_conversation_for_summary() 
     prompt = SESSION_SUMMARY_TEMPLATE.format(conversation_text=conversation_text)
     try:
-        response = llm_service.invoke_prompt(prompt)
+        response = llm_service.invoke(prompt)
         content = response.content if hasattr(response, "content") else str(response)
+        print("\nSUMMARY: ", content)
 
         # Parse output
         subject = ""

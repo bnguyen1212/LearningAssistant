@@ -18,14 +18,11 @@ class LLMService:
 
     def invoke(self, messages): #Stateful
         """
-        Directly invoke the LLM with a list of message objects. Prepends system prompt if not already present.
+        Directly invoke the LLM with a list of message objects.
         """
-        # Only add system prompt if not already present
-        if not messages or not (isinstance(messages[0], SystemMessage) and messages[0].content == self.system_prompt):
-            messages = [SystemMessage(content=self.system_prompt)] + messages
         return self.llm.invoke(messages)
 
-    def invoke_prompt(self, prompt: str): #Stateless
+    def invoke_context(self, prompt: str): #Stateless
         """
         Directly invoke the LLM with a single prompt string, always with system prompt and recent context.
         """
@@ -39,4 +36,9 @@ class LLMService:
         return self.llm.invoke(
             messages
         )
+    def invoke_prompt(self, prompt: str):
+        """
+        Directly invoke the llm with just a single prompt string.
+        """
+        return self.llm.invoke([HumanMessage(content=prompt)])
 llm_service = LLMService()
