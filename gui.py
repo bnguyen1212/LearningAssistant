@@ -59,6 +59,7 @@ class LearningAssistantGUI(QWidget):
             self.display_message("System", "Exiting...")
             self.user_input.setDisabled(True)
             self.send_button.setDisabled(True)
+            self.close()
         elif status == "clear":
             self.display_message("System", output)
             self.chat_display.clear()
@@ -70,10 +71,16 @@ class LearningAssistantGUI(QWidget):
             self.send_button.setDisabled(False)
 
     def display_message(self, sender, message):
-        if sender == "Assistant":
-            html = markdown.markdown(message)
-            self.chat_display.append(f"<b>{sender}:</b> {html}")
+        if sender == "You":
+            # Right-align user messages
+            html = f'<div style="text-align: right;"><b>{sender}:</b> {message}</div>'
+            self.chat_display.append(html)
+        elif sender == "Assistant":
+            # Left-align assistant messages (default)
+            html = f'<div style="text-align: left;"><b>{sender}:</b> {message}</div>'
+            self.chat_display.append(html)
         else:
+            # System or other messages
             self.chat_display.append(f"<b>{sender}:</b> {message}")
 
 if __name__ == "__main__":
