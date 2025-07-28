@@ -139,7 +139,7 @@ class LearningAssistantGUI(QWidget):
                 f'</div>'
             )
         elif sender == "Assistant":
-            msg = markdown.markdown(message).strip()
+            msg = markdown.markdown(message, extensions=['fenced_code'])
             # Remove leading/trailing <p> tags to avoid extra newlines
             if msg.startswith('<p>') and msg.endswith('</p>'):
                 msg = msg[3:-4]

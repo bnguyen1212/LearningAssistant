@@ -97,11 +97,12 @@ def process_user_input(user_input: str):
                             )
                             conversation_manager.add_message("assistant", followup.content)
                             assistant_output = getattr(followup, "content", followup)
-                        # If the tool is save_session_tool, print the referenced files used
+                        # If the tool is save_session_tool, print the referenced files used and return note path
                         if tool_name == "save_session_tool":
                             tool_input["referenced_files"] = list(conversation_manager.referenced_files_state)
                             tool_result = tool_func(**tool_input)
                             print(f"[Session saved with referenced files]: {sorted(conversation_manager.referenced_files_state)}")
+                            assistant_output = f"Note saved: {tool_result}"
                     except Exception as e:
                         print(f"[Tool '{tool_name}' error]: {e}")
                 else:
