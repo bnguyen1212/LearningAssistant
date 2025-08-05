@@ -14,7 +14,7 @@ class AgentConfig:
         # LLM Settings
         self.LLM_MODEL: str = "claude-sonnet-4-20250514"
         self.LLM_TEMPERATURE: float = 0.1
-        self.LLM_MAX_TOKENS: 20000
+        self.LLM_MAX_TOKENS: int = 20000
         
         # Agent Settings
         self.MAX_TOOL_ITERATIONS: int = 5

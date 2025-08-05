@@ -12,6 +12,7 @@ class LLMService:
             anthropic_api_key=config.ANTHROPIC_API_KEY,
             model=config.LLM_MODEL,
             temperature=config.LLM_TEMPERATURE,
+            max_tokens=config.LLM_MAX_TOKENS,
         )
         # Set system prompt (default or provided)
         self.system_prompt = CHAT_SYSTEM_PROMPT
@@ -33,9 +34,11 @@ class LLMService:
             print(f"Recent messages: {recent_messages}")
         messages.append((HumanMessage(content=prompt)))
         print(f"LLM Invoked: {messages}")
-        return self.llm.invoke(
+        response = self.llm.invoke(
             messages
         )
+        print("\nLLM Response: ", response)
+        return response
     def invoke_prompt(self, prompt: str):
         """
         Directly invoke the llm with just a single prompt string.

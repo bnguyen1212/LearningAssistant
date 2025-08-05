@@ -26,12 +26,13 @@ def clean_llm_output(text):
     patterns = [
         r"<function_calls>.*?</function_calls>",
         r"<invoke.*?>.*?</invoke>",
-        r"<result>.*?</result>",
         r"<tool_calls>.*?</tool_calls>",
         r"<tool_use>.*?</tool_use>",
         r"<function_call>.*?</function_call>",
         r"<functions>.*?</functions>",
         r"<response>.*?</response>",
+        r"<result>",
+        r"</result>",
     ]
     if model_type == "openai":
         patterns += [r'"tool_calls":.*?\}\]']
