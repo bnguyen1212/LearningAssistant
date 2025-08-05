@@ -99,6 +99,7 @@ tags: [learning, session, summary]
 **Backlinks:**
 
 - For every referenced file, a backlink is automatically added to the original note under a `## References` section:
+
   ```markdown
   ## References
 
@@ -125,7 +126,7 @@ This structure ensures easy navigation, traceability, and rich interlinking betw
 ### Core Components
 
 - **Vector Store**: ChromaDB with Voyage AI embeddings for semantic search
-- **LLM Service**: Claude Haiku for cost-effective, intelligent responses
+- **LLM Service**: Claude Sonnet 4 for advanced, intelligent responses
 - **Obsidian Integration**: Direct file system integration with markdown generation
 
 ## 🚀 Quick Start
