@@ -129,6 +129,35 @@ This structure ensures easy navigation, traceability, and rich interlinking betw
 - **LLM Service**: Claude Sonnet 4 for advanced, intelligent responses
 - **Obsidian Integration**: Direct file system integration with markdown generation
 
+## 🖥️ GUI Functionality
+
+The Learning Assistant now includes a modern, chat-like graphical user interface (GUI) built with PySide6. This GUI provides a seamless and interactive experience for managing conversations, viewing context, and saving notes.
+
+### Key Features
+
+- **Chat Display**: Messages are shown in a visually appealing, chat-style format with Markdown rendering (including code blocks).
+- **Message Alignment**: User and assistant messages are aligned for clarity, with consistent font sizing and spacing.
+- **Scroll & Focus**: The chat window automatically scrolls to the latest message and keeps the input field focused for fast interaction.
+- **Session State**: The GUI maintains session state and displays confirmation messages when notes are saved.
+- **Backend Integration**: The backend runs in a separate process for stability and responsiveness.
+- **Tool Calls**: Tool calls and results are handled transparently, with only relevant conversational output shown to the user.
+
+### How to Use
+
+1. Start the GUI by running:
+   ```bash
+   python gui.py
+   ```
+2. Interact with the assistant in the chat window. All features available in the CLI are supported, plus:
+   - Rich Markdown rendering
+   - Automatic scroll-to-bottom
+   - Confirmation and introductory messages
+   - Note saving and session management
+
+The GUI is designed to closely resemble modern messaging apps, making your learning experience more intuitive and enjoyable.
+
+---
+
 ## 🚀 Quick Start
 
 ### 1. Prerequisites
