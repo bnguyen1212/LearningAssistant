@@ -193,10 +193,10 @@ OBSIDIAN_VAULT_PATH=C:\path\to\your\obsidian\vault
 python services/build_index.py
 ```
 
-### 5. Start the Assistant
+### 5. Start the Assistant with GUI
 
 ```bash
-python main.py
+python gui.py
 ```
 
 ## 🤝 Contributing
