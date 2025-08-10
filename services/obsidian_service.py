@@ -27,16 +27,14 @@ class ObsidianService:
         """
         Create or get daily folder for organizing notes by date
         """
-        # Base folder for all learning sessions
-        base_folder = self.vault_path / config.OBSIDIAN_DAILY_NOTES_FOLDER
-        base_folder.mkdir(exist_ok=True)
-        
-        # Create daily folder with format: "8-10-2025"
         today = datetime.now()
-        daily_folder_name = today.strftime("%-m-%-d-%Y") if hasattr(today, 'strftime') else f"{today.month}-{today.day}-{today.year}"
-        # For Windows compatibility (strftime doesn't support '-' flag)
-        if '%' in daily_folder_name or '-' in daily_folder_name:
-            daily_folder_name = f"{today.month}-{today.day}-{today.year}"
+        # Base folder: vault_path / config.OBSIDIAN_DAILY_NOTES_FOLDER / M-YYYY
+        base_folder = self.vault_path / config.OBSIDIAN_DAILY_NOTES_FOLDER / f"{today.month}-{today.year}"
+        base_folder.mkdir(parents=True, exist_ok=True)
+
+        # Daily folder: D-M-YYYY
+        daily_folder_name = f"{today.day}-{today.month}-{today.year}"
+        print("Daily folder: ", daily_folder_name)
         daily_folder = base_folder / daily_folder_name
         daily_folder.mkdir(exist_ok=True)
         return daily_folder

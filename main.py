@@ -121,6 +121,7 @@ def process_user_input(user_input: str):
 
 def manual_reasoning_loop():
     print("Learning Assistant (type 'exit' to quit)")
+    vector_service.build_obsidian_index()
     print(vector_service.get_index_stats())
     while True:
         user_input = input("You: ")
