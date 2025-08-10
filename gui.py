@@ -128,6 +128,7 @@ class LearningAssistantGUI(QWidget):
             self.user_input.setDisabled(False)
             self.send_button.setDisabled(False)
         # Always place cursor in text input after response
+        self.chat_display.verticalScrollBar().setValue(self.chat_display.verticalScrollBar().maximum())
         self.user_input.setFocus()
 
     def display_message(self, sender, message):
@@ -155,7 +156,6 @@ class LearningAssistantGUI(QWidget):
         self.messages.append(html)
         # Rebuild the chat display HTML from all messages
         all_html = "<html><body>" + "".join(self.messages) + "</body></html>"
-        print(all_html)
         self.chat_display.setHtml(all_html)
         # Scroll to bottom after adding new message
         self.chat_display.verticalScrollBar().setValue(self.chat_display.verticalScrollBar().maximum())
