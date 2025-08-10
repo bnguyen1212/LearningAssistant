@@ -23,7 +23,7 @@ class AgentConfig:
         
         # Vector Store Settings
         self.CHROMA_COLLECTION_NAME: str = "obsidian_notes"
-        self.EMBED_MODEL: str = "voyage-context-3"
+        self.EMBED_MODEL: str = "voyage-3-large"
         self.VECTOR_SEARCH_TOP_K: int = 3
         self.VECTOR_SIMILARITY_THRESHOLD: float = 0.4
         self.NODE_CHUNK_SIZE: int = 512
