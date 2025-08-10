@@ -31,12 +31,14 @@ class ObsidianService:
         base_folder = self.vault_path / config.OBSIDIAN_DAILY_NOTES_FOLDER
         base_folder.mkdir(exist_ok=True)
         
-        # Create daily folder with clean date format: "July 11, 2025"
+        # Create daily folder with format: "8-10-2025"
         today = datetime.now()
-        daily_folder_name = today.strftime("%B %d, %Y")  # e.g., "July 11, 2025"
+        daily_folder_name = today.strftime("%-m-%-d-%Y") if hasattr(today, 'strftime') else f"{today.month}-{today.day}-{today.year}"
+        # For Windows compatibility (strftime doesn't support '-' flag)
+        if '%' in daily_folder_name or '-' in daily_folder_name:
+            daily_folder_name = f"{today.month}-{today.day}-{today.year}"
         daily_folder = base_folder / daily_folder_name
         daily_folder.mkdir(exist_ok=True)
-        
         return daily_folder
     
     def generate_session_filename(self, session_name: str = None) -> str:
