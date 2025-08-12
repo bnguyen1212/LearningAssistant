@@ -33,8 +33,8 @@ class ObsidianService:
         base_folder.mkdir(parents=True, exist_ok=True)
 
         # Daily folder: D-M-YYYY
-        daily_folder_name = f"{today.day}-{today.month}-{today.year}"
-        print("Daily folder: ", daily_folder_name)
+        daily_folder_name = f"{today.month}-{today.day}-{today.year}"
+        #print("Daily folder: ", daily_folder_name)
         daily_folder = base_folder / daily_folder_name
         daily_folder.mkdir(exist_ok=True)
         return daily_folder
